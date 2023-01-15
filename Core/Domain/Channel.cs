@@ -6,7 +6,7 @@ public class Channel
 {
     public long Id { get; set; }
     //Ссылка на сайт источника
-    public string? Link { get; set; }
+    public string Link { get; set; } = null!;
     //Заголовок сайта - источника
     public string? Title { get; set; }
     //Описание сайта - источника

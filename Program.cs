@@ -32,16 +32,16 @@ namespace NewsParser
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "NewsParser.WebApi", Version = "v1" });
-                //var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-                //c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+                var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
             });
 
             services.AddDbContext<DataContext>(option =>
             {
                 option.UseNpgsql(builder.Configuration.GetConnectionString("SqlDb"));
                 option.EnableSensitiveDataLogging();
-                //        option.UseSnakeCaseNamingConvention();
-                option.UseLazyLoadingProxies();
+                //option.UseSnakeCaseNamingConvention();
+                //option.UseLazyLoadingProxies();
 
             });
             //services.AddScoped<IDbInitializer, DbInitializer>();

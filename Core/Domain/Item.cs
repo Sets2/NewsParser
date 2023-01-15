@@ -21,6 +21,7 @@ public class Item
     public bool IsReaded { get; set; }=false;
     public long ChannelId { get; set; }
 
+    [JsonIgnore]
     public virtual Channel Channel { get; set; } = null!;
 
     public bool IsSaved = false;
