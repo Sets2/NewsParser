@@ -1,0 +1,14 @@
+[
+    {
+        "Id": 1,
+        "Title": "www.rbc.ru",
+        "Link": "https://rssexport.rbc.ru/rbcnews/news/20/full.rss",
+        "Description": "РБК Новости"
+    },
+    {
+        "Id": 2,
+        "Title": "Lenta.ru",
+        "Link": "https://lenta.ru/rss/google-newsstand/main/",
+        "Description": "Новости, статьи, фотографии, видео. Семь дней в неделю, 24 часа в сутки."
+    }
+]
