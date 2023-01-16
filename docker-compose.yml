@@ -12,13 +12,13 @@ services:
       - 5001:443
     environment:
       - ConnectionStrings__SqlDb=Server=newsparser-db-pg15;Database=NewsParser;Username=postgres;Password=postgres;
-      - DbInit="./DataAccess/Data/"
+      - DbInit=./DataAccess/Data/
       - ParserSettings__bufferItemsMax=100
       - ParserSettings__timeReadItemSuccess=120
       - ParserSettings__timeReadItemError=120
       - ParserSettings__timeChannelsUpdate=120
       - ParserSettings__timeWaitHostedServices=10
-      - ASPNETCORE_ENVIRONMENT=Development
+      #- ASPNETCORE_ENVIRONMENT=Development
     depends_on:
       - db-pg15
   #Db
@@ -37,7 +37,7 @@ services:
   #Db admin
   pg-admin:
     image: 'dpage/pgadmin4'
-    container_name: 'windsharing-db-admin'
+    container_name: 'newsparser-db-admin'
     restart: always
     ports:
       - 8070:80
