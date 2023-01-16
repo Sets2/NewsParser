@@ -1,0 +1,56 @@
+version: "3.7"
+
+services:
+  #Db
+  web:
+    container_name: 'newsparser-web-api'
+    build:
+      context: .
+      dockerfile: ./Src/NewsParser/Dockerfile
+    ports:
+      - 5000:80
+      - 5001:443
+    environment:
+      - ConnectionStrings__SqlDb=Server=newsparser-db-pg15;Database=NewsParser;Username=postgres;Password=postgres;
+      - DbInit="./DataAccess/Data/"
+      - ParserSettings__bufferItemsMax=100
+      - ParserSettings__timeReadItemSuccess=120
+      - ParserSettings__timeReadItemError=120
+      - ParserSettings__timeChannelsUpdate=120
+      - ParserSettings__timeWaitHostedServices=10
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - db-pg15
+  #Db
+  db-pg15:
+    image: "postgres:latest"
+    container_name: 'newsparser-db-pg15'
+    restart: always
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=WindSharing
+    volumes:
+      - postgres_data_newsparser:/var/lib/postgresql/data/
+  #Db admin
+  pg-admin:
+    image: 'dpage/pgadmin4'
+    container_name: 'windsharing-db-admin'
+    restart: always
+    ports:
+      - 8070:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "postgres@domain.com"
+      PGADMIN_DEFAULT_PASSWORD: "password"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - db-pg15
+
+volumes:
+  postgres_data_newsparser:
+  pgadmin-data:
+
+
