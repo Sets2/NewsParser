@@ -1,12 +1,9 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi.Models;
 using NewsParser.Parser;
 using System.Reflection;
-using System.Threading;
 using DataAccess;
 using DataAccess.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Otus.Teaching.Pcf.Administration.Integration;
 
 namespace NewsParser

@@ -25,7 +25,7 @@ namespace DataAccess.Data
             const string channelFile = "dbInitChannel.json";
             const string itemFile = "dbInitChannelItems.json";
 
-            await _dataContext.Database.EnsureDeletedAsync();
+//            await _dataContext.Database.EnsureDeletedAsync();
             if (await _dataContext.Database.EnsureCreatedAsync())
             {
                 var path = _configuration["DbInit"];
