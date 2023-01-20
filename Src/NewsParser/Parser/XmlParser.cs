@@ -5,7 +5,7 @@ namespace NewsParser.Parser;
 
 public class XmlParser:IParser
 {
-    private XmlDocument _xDoc = new XmlDocument();
+    private readonly XmlDocument _xDoc = new XmlDocument();
     private readonly ILogger<XmlParser> _logger;
 
     public XmlParser(ILogger<XmlParser> logger)
@@ -37,8 +37,8 @@ public class XmlParser:IParser
                             if (tagname == "link") item.Link = childnode.InnerText;
                             if (tagname == "pubDate") item.PubDate = childnode.InnerText;
                             if (tagname == "description") item.Description = childnode.InnerText;
-                            if (tagname.Contains("full-text") | tagname.Contains("content:"))
-                                item.Summary = childnode.InnerText;
+                            //if (tagname.Contains("full-text") | tagname.Contains("content:"))
+                            //    item.Summary = childnode.InnerText; // Большой объем текста - закомментированно для отладки
                         }
 
                         ItemsList.Add(item);
@@ -48,7 +48,7 @@ public class XmlParser:IParser
         }
         catch (Exception e)
         {
-            _logger.LogError(e,e.Message + " Ошибка парсинга XML контента в коллекцию");
+            _logger.LogError(e,$"{e.Message} Ошибка парсинга XML контента в коллекцию");
         }
 
         return ItemsList;

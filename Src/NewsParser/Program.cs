@@ -37,11 +37,10 @@ namespace NewsParser
             {
                 option.UseNpgsql(builder.Configuration.GetConnectionString("SqlDb"));
                 option.EnableSensitiveDataLogging();
-                //option.UseSnakeCaseNamingConvention();
-                //option.UseLazyLoadingProxies();
+                //option.UseLazyLoadingProxies();   // Возможно подключение "ленивой" загрузки подчиненных сущностей
 
             });
-            //services.AddScoped<IDbInitializer, DbInitializer>();
+            services.AddScoped<IDbInitializer, DbInitializer>();
 
             services.AddMvc(options =>
             {
@@ -63,7 +62,7 @@ namespace NewsParser
             app.UseSwagger();
             app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1"));
 
-            //app.UseHttpsRedirection();
+            app.UseHttpsRedirection();
             app.UseRouting();
             app.MapControllers();
 

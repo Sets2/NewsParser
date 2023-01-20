@@ -20,9 +20,10 @@ namespace Otus.Teaching.Pcf.Administration.Integration
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            stoppingToken.ThrowIfCancellationRequested();
+
             while (true)
             {
+                stoppingToken.ThrowIfCancellationRequested();
                 await _groupChannels.UpdateChannels();
                 await _groupChannels.ReadChannels();
                 await Task.Delay(_timeWait);

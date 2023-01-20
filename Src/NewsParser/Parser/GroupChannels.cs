@@ -1,23 +1,13 @@
-﻿using System.Diagnostics;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Channels;
-using System.Xml;
-using System.Xml.Linq;
-using DataAccess;
-using DataAccess.Data;
+﻿using DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NewsParser.Core.Domain;
-using Channel = NewsParser.Core.Domain.Channel;
 
 namespace NewsParser.Parser;
 
 public class GroupChannels:IGroupChannels
 {
-    private const string _uri = "https://rssexport.rbc.ru/rbcnews/news/20/full.rss";
+    //private const string _uri = "https://rssexport.rbc.ru/rbcnews/news/20/full.rss";
     //private const string _uri = "https://lenta.ru/rss/google-newsstand/main/";
     //private const string _uri = "https://www.kommersant.ru/RSS/news.xml";
     //private const string _uri = "http://www.vedomosti.ru/newspaper/out/rss.xml";
@@ -28,11 +18,11 @@ public class GroupChannels:IGroupChannels
     private readonly IServiceProvider _service;
     private readonly IOptions<ParserSettings> _options;
     private readonly ILogger<GroupChannels> _logger;
-    private DataContext _dataContext;
+    private readonly DataContext _dataContext;
     private List<ChannelReader> _channelReaders = new List<ChannelReader>();
 
     // Последнее время выполнение обновления списка каналов
-    DateTime _lasttime;
+    private DateTime _lasttime;
 
     public GroupChannels(IServiceProvider service, IOptions<ParserSettings> options, ILogger<GroupChannels> logger)
     {
@@ -53,7 +43,7 @@ public class GroupChannels:IGroupChannels
             _lasttime = DateTime.UtcNow;
             try
             {
-                var channelReadersId = _channelReaders.Select(x => x.Channel.Id);
+                var channelReadersId = _channelReaders.Select(x => x.Id);
                 List<Channel> currChannels = await _dataContext.Channel.AsNoTracking().ToListAsync();
 
                 bool exist;
@@ -63,9 +53,9 @@ public class GroupChannels:IGroupChannels
                     exist = false;
                     foreach (var currChannel in currChannels)
                     {
-                        if (channel.Channel.Id == currChannel.Id) 
+                        if (channel.Id == currChannel.Id) 
                         {
-                            if(channel.Channel.Link != currChannel.Link) channel.Channel.Link = currChannel.Link;
+                            channel.UpdateLink(currChannel);
                             exist = true;
                             break;
                         }
@@ -79,15 +69,15 @@ public class GroupChannels:IGroupChannels
                 foreach (var newChannel in newChannels)
                 {
                     var prs = _service.GetRequiredService<IParser>();
-                    var channelReder = new ChannelReader(newChannel, prs, _httpClient, _dataContext, _options, _logger);
-                    await channelReder.InitBuffersItems(); // Инициализация буфера последними записями из БД
-                    _channelReaders.Add(channelReder);
+                    var channelReader = new ChannelReader(newChannel, prs, _httpClient, _dataContext, _options, _logger);
+                    await channelReader.InitBuffersItems(); // Инициализация буфера последними записями из БД
+                    _channelReaders.Add(channelReader);
                 }
             }
             catch (Exception e)
             {
                 _logger.LogError(e,
-                    e.Message + " Ошибка считывания и обновления данных каналов из БД");
+                    $"{e.Message} Ошибка считывания и обновления данных каналов из БД");
             }
         }
     }

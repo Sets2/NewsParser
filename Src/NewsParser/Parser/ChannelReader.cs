@@ -10,10 +10,8 @@ namespace NewsParser.Parser;
 public class ChannelReader
 {
     // Сущность новостного канала
-    public Channel Channel { get; set; }
-    public IParser Parser { get; private set; }
-
-    // HTTP клиент
+    private readonly Channel _channel;
+    private readonly IParser _parser;
     private readonly HttpClient _httpClient;
     private readonly DataContext _dataContext;
     private readonly IOptions<ParserSettings> _options;
@@ -21,19 +19,19 @@ public class ChannelReader
 
     // Очередь из последних считанных ссылок из запроса на чтение канала
     // необходима для предотвращения повторных попыток записи в БД
-    List<Item> _bufferItems;
+    private List<Item> _bufferItems;
 
     // Успешность выполнения последнего запроса на чтение канала
-    bool _IsSuccessRead = true;
+    private bool _IsSuccessRead = true;
 
     // Последнее время выполнения запроса на чтение канала
-    DateTime _lasttime;
+    private DateTime _lasttime;
 
     public ChannelReader(Channel channel, IParser parser, HttpClient httpClient, DataContext dataContext,
         IOptions<ParserSettings> options, ILogger<GroupChannels> logger)
     {
-        Channel=channel;
-        Parser = parser;
+        _channel=channel;
+        _parser = parser;
         _httpClient = httpClient;
         _dataContext = dataContext;
         _options = options;
@@ -41,7 +39,10 @@ public class ChannelReader
         _bufferItems = new List<Item>(_options.Value.bufferItemsMax * 2);
         _lasttime = DateTime.UtcNow.AddSeconds(-_options.Value.timeReadItemError * 2);
     }
-
+    public long Id
+    {
+        get => _channel.Id;
+    }
     public async Task<string?> ReadNewsSite()
     {
         _IsSuccessRead = false;
@@ -51,7 +52,7 @@ public class ChannelReader
         HttpResponseMessage? response = null;
         try
         {
-            request = new HttpRequestMessage(HttpMethod.Get, Channel.Link);
+            request = new HttpRequestMessage(HttpMethod.Get, _channel.Link);
             //request.Headers.Add("Accept", "text/xml,text/html,application/xhtml+xml,application/xml");
             request.Headers.Add("Accept-Charset", "UTF-8");
             request.Headers.Add("User-Agent",
@@ -70,7 +71,7 @@ public class ChannelReader
         }
         catch (Exception e)
         {
-            _logger.LogError(e, e.Message +$" Возникла ошибка при получении данных с новстного сервера по каналу {Channel.Id} {Channel.Title}");
+            _logger.LogError(e, e.Message +$" Возникла ошибка при получении данных с новостного сервера по каналу {_channel.Id} {_channel.Title}");
         }
         finally
         {
@@ -95,8 +96,8 @@ public class ChannelReader
             content = await ReadNewsSite();
             if (content != null)
             {
-                var itemsList = Parser.Parse(content);
-                itemsList.ForEach(x=> x.ChannelId = Channel.Id);
+                var itemsList = _parser.Parse(content);
+                itemsList.ForEach(x=> x.ChannelId = _channel.Id);
                 _bufferItems = _bufferItems.UnionBy(itemsList, x => x.Link).ToList();
                 await SaveBuffersItems();
             }
@@ -122,7 +123,7 @@ public class ChannelReader
             }
             catch (Exception e)
             {
-                _logger.LogError(e, e.Message + " Ошибка записи Item в БД");
+                _logger.LogError(e, $"{e.Message} Ошибка записи Item в БД");
             }
         }
     }
@@ -132,7 +133,7 @@ public class ChannelReader
         try
         {
             // Считываем для буферизации последние элементы, не превышающие допустимого количества
-            var _initBufferItems = await _dataContext.Item.Where(x=>x.ChannelId==Channel.Id).
+            var _initBufferItems = await _dataContext.Item.Where(x=>x.ChannelId==_channel.Id).
                 OrderByDescending(x=>x.Id).
                 Take(_options.Value.bufferItemsMax).
                 AsNoTracking().ToListAsync();
@@ -142,8 +143,13 @@ public class ChannelReader
         }
         catch (Exception e)
         {
-            _logger.LogError(e, e.Message + " Ошибка чтения Item из БД при инициализации");
+            _logger.LogError(e, $"{e.Message} Ошибка чтения Item из БД при инициализации");
         }
+    }
+
+    public void UpdateLink(Channel channel)
+    {
+        if (_channel.Link != channel.Link) _channel.Link = channel.Link;
     }
 
     private void AddItemsToBuffer(List<Item> itemsList)
@@ -153,4 +159,5 @@ public class ChannelReader
         itemsList.RemoveAll(x=>existItems.Contains(x.Link));
         _bufferItems.AddRange(itemsList);
     }
+
 }
