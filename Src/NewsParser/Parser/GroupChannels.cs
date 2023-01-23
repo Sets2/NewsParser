@@ -32,6 +32,7 @@ public class GroupChannels:IGroupChannels
         _logger = logger;
         var scope = service.CreateScope();
         _dataContext = scope.ServiceProvider.GetRequiredService<DataContext>();
+        _dataContext.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
         _lasttime = DateTime.UtcNow.AddSeconds(-_options.Value.timeChannelsUpdate * 2);
     }
 

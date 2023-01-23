@@ -37,6 +37,7 @@ namespace NewsParser
             {
                 option.UseNpgsql(builder.Configuration.GetConnectionString("SqlDb"));
                 option.EnableSensitiveDataLogging();
+                option.EnableDetailedErrors();
                 //option.UseLazyLoadingProxies();   // Возможно подключение "ленивой" загрузки подчиненных сущностей
 
             });

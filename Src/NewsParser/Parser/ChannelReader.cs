@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using DataAccess;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,9 @@ public class ChannelReader
     // Последнее время выполнения запроса на чтение канала
     private DateTime _lasttime;
 
+    // Уточненный максимальный размер очереди канала
+    private int _bufferItemsMax;
+
     public ChannelReader(Channel channel, IParser parser, HttpClient httpClient, DataContext dataContext,
         IOptions<ParserSettings> options, ILogger<GroupChannels> logger)
     {
@@ -38,6 +42,7 @@ public class ChannelReader
         _logger = logger;
         _bufferItems = new List<Item>(_options.Value.bufferItemsMax * 2);
         _lasttime = DateTime.UtcNow.AddSeconds(-_options.Value.timeReadItemError * 2);
+        _bufferItemsMax=_options.Value.bufferItemsMax;
     }
     public long Id
     {
@@ -99,6 +104,9 @@ public class ChannelReader
                 var itemsList = _parser.Parse(content);
                 itemsList.ForEach(x=> x.ChannelId = _channel.Id);
                 _bufferItems = _bufferItems.UnionBy(itemsList, x => x.Link).ToList();
+                //var buferItemsLink = _bufferItems.Select(x=>x.Link);
+                //var exceptItems = itemsList.ExceptBy(buferItemsLink, x => x.Link).ToList();
+                //_bufferItems.AddRange(exceptItems);
                 await SaveBuffersItems();
             }
         }
@@ -106,25 +114,71 @@ public class ChannelReader
 
     public async Task SaveBuffersItems()
     {
+        bool isSuccess = true;
         // Выбираем несохраненные  элементы
         var notSaved = _bufferItems.FindAll(x => x.IsSaved == false);
         if(notSaved.Any())
         {
-            try
+            foreach (var item in notSaved)
             {
-                await _dataContext.Item.AddRangeAsync(notSaved);
-                await _dataContext.SaveChangesAsync();
-                // Выставляем признак сохраненности
-                notSaved.ForEach(x=> x.IsSaved=true);
-                // Осталяем последние элементы, не превышающие допустимого количества
-                var countDelItems = _bufferItems.Count - _options.Value.bufferItemsMax;
-                if(countDelItems > 0) 
-                    _bufferItems = _bufferItems.GetRange(countDelItems, _bufferItems.Count- countDelItems);
+                try
+                {
+                    var exItem = _dataContext.Item.Local.SingleOrDefault(o => o.Link == item.Link);
+                    if (exItem != null)
+                        _dataContext.Entry(exItem).State = EntityState.Detached;
+
+                    _dataContext.Update(item);
+
+                    var addedItem = await _dataContext.Item.AddAsync(item);
+                    await _dataContext.SaveChangesAsync();
+                    //_dataContext.Entry(addedItem).State = EntityState.Detached;
+                    //_dataContext.ChangeTracker.DetectChanges();
+                    //Console.WriteLine(_dataContext.ChangeTracker.DebugView.ShortView);
+                    item.IsSaved = true;
+                }
+                catch (Exception e)
+                {
+                    _dataContext.ChangeTracker.DetectChanges();
+                    Console.WriteLine("_____________________________________________________________");
+                    Console.WriteLine(_dataContext.ChangeTracker.DebugView.LongView);
+                    _logger.LogError(e, $"{e.Message} Ошибка записи Item в БД {item.Id} {item.Link} ");
+                    isSuccess = false;
+                }
             }
-            catch (Exception e)
+            // Выбираем несохраненные элементы из за ошибки записи (дубликат ссылки)
+            if (!isSuccess)
             {
-                _logger.LogError(e, $"{e.Message} Ошибка записи Item в БД");
+                notSaved = notSaved.FindAll(x => x.IsSaved == false);
+                if (notSaved.Any()) await UpdateStatusAndId(notSaved);
             }
+
+            // Осталяем последние элементы, не превышающие допустимого количества
+            var countDelItems = _bufferItems.Count - _bufferItemsMax;
+            if (countDelItems > 0)
+                _bufferItems = _bufferItems.GetRange(countDelItems, _bufferItems.Count - countDelItems);
+        }
+    }
+
+    private async Task UpdateStatusAndId(IEnumerable<Item> items)
+    {
+        var linkItems = items.Select(x => x.Link);
+        List<Item> efItems=null;
+        try
+        {
+            efItems = await _dataContext.Item.Where(x => linkItems.Contains(x.Link)).
+                AsNoTracking().ToListAsync();
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, $"{e.Message} Ошибка чтения Item из БД");
+            return;
+        }
+        var comList = items.
+            Join(efItems,x=>x.Link,y=>y.Link,(x,y)=> new{x,y.Id}).ToList();
+        foreach (var item in comList)
+        {
+            item.x.Id = item.Id;
+            item.x.IsSaved = true;
         }
     }
 
@@ -133,13 +187,19 @@ public class ChannelReader
         try
         {
             // Считываем для буферизации последние элементы, не превышающие допустимого количества
-            var _initBufferItems = await _dataContext.Item.Where(x=>x.ChannelId==_channel.Id).
-                OrderByDescending(x=>x.Id).
+            var _initBufferItems = await _dataContext.Item.
+                Where(x=>x.ChannelId==_channel.Id).
+                OrderBy(x=>x.Id).
                 Take(_options.Value.bufferItemsMax).
                 AsNoTracking().ToListAsync();
             // Выставляем признак сохраненности
             _initBufferItems.ForEach(x => x.IsSaved = true);
             _bufferItems.AddRange(_initBufferItems);
+            if (_bufferItems.Count*2 > _bufferItemsMax)
+            {
+                _bufferItemsMax = _bufferItems.Count * 2;
+                _bufferItems.Capacity= _bufferItemsMax * 2;
+            }
         }
         catch (Exception e)
         {
