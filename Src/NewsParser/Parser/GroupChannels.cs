@@ -87,7 +87,7 @@ public class GroupChannels:IGroupChannels
     {
         foreach (var reader in _channelReaders)
         {
-            await reader.ReadParse();
+            await reader.ReadParseAndSaveBuffers();
         }
     }
 }
